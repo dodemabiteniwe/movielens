@@ -46,8 +46,8 @@ movies <- movies %>%
 movielens <- left_join(ratings, movies, by = "movieId")
 
 # Final hold-out test set will be 10% of MovieLens data
-#set.seed(1, sample.kind="Rounding") # if using R 3.6 or later
-set.seed(1) # if using R 3.5 or earlier
+set.seed(1, sample.kind="Rounding") # if using R 3.6 or later
+#set.seed(1) # if using R 3.5 or earlier
 test_index <- createDataPartition(y = movielens$rating, times = 1, p = 0.1, list = FALSE)
 edx <- movielens[-test_index,]
 temp <- movielens[test_index,]
@@ -65,7 +65,7 @@ rm(dl, ratings, movies, test_index, temp, movielens, removed)
 save(edx, file = "rdas/edx.rda")
 save(final_holdout_test, file = "rdas/final_holdout_test.rda")
 
-
+dim(edx)
 
 
 
