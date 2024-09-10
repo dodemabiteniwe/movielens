@@ -266,13 +266,14 @@ tun <- recom_system$tune(train_rec, opts = list(dim = c(10, 20, 30),
 
 recom_system$train(train_rec, opts = c(tun$min,
                                                        nthread = 4,
-                                                       niter = 20))
+                                                       niter = 30))
 
 #####Prediction##############
 
 #y_hat_MatFac <-  recom_system$predict(test_rec, out_memory())
 y_hat_MatFac <-  recom_system$predict(valid_rec, out_memory())
 
+Metrics::rmse(final_holdout_test$rating, y_hat_MatFac)
 #############Evaluation ###############
 
 evaluation <- bind_rows(evaluation,
@@ -348,6 +349,11 @@ evaluate_models <- function(train, test, models) {
 results <- evaluate_models(train_data, test_data, model_list)
 results
 
-model <- Recommender(train_data, method = "UBCF")
-prediction <- predict(model, test_data, type = "ratings")
+model <- Recommender(rat_mat, method = "POPULAR")
+prediction <- predict(model, test_mat, type = "ratingMatrix")
+eval1 <- calcPredictionAccuracy(prediction, test_data, byUser = FALSE)
 
+n_distinct(edx$movieId)
+n_distinct(final_holdout_test$movieId)
+n_distinct(edx$userId)
+n_distinct(final_holdout_test$userId)
