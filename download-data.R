@@ -62,8 +62,8 @@ removed <- anti_join(temp, final_holdout_test)
 edx <- rbind(edx, removed)
 
 rm(dl, ratings, movies, test_index, temp, movielens, removed)
-save(edx, file = "rdas/edx.rda")
-save(final_holdout_test, file = "rdas/final_holdout_test.rda")
+save(edx, file = "rdas2/edx.rda")
+save(final_holdout_test, file = "rdas2/final_holdout_test.rda")
 
 
 
