@@ -1,0 +1,371 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{5}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\usepackage{tabu}
+\usepackage{threeparttable}
+\usepackage{threeparttablex}
+\usepackage[normalem]{ulem}
+\usepackage{makecell}
+\usepackage{xcolor}
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Recommender Systems with R: Model for predicting movie ratings.},
+  pdfauthor={Dodema BITENIWE},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Recommender Systems with R: Model for predicting movie ratings.}
+\author{Dodema BITENIWE}
+\date{20 septembre, 2024}
+
+\begin{document}
+\maketitle
+
+{
+\setcounter{tocdepth}{2}
+\tableofcontents
+}
+\section{Project overview}\label{project-overview}
+
+This project is part of the Data Science professional certification pathway offered by HarvardX on edx. It is the ninth and final course of a multi-part course. In this part, we demonstrate our mastery of the skills acquired during the course by building a machine learning model. The idea is to build a recommendation system on movie data. The system's aim is to suggest movies to users, taking into account their profiles, the movies they have already watched and rated, and similar profiles.
+
+The data used in this project comes from the grouplens website (\url{https://grouplens.org/datasets/movielens/latest/}), where we can find a variety of data for Data Science practice. The project data set is a compilation of over 10 million ratings for more than 10,000 movies by 72,000 users. This data is known as the MovieLens 10M Dataset.
+
+In this report, we will start with an organization of the data, followed by an exploratory analysis of the data, then the construction of the model and presentation of the results, and finally the conclusion.
+
+\section{Data processing and organization}\label{data-processing-and-organization}
+
+The data was downloaded from the site (\url{http://grouplens.org/datasets/movielens/10m/}), then processed and organized according to the project guidelines, in this case following the code provided for this purpose. For analysis and modelling purposes, the data is divided into two parts. The first part, called edx, contains 90\% of the original data and will be used to train and test the various algorithms.Table \ref{tab:edxhead} gives an overview of the edx data.In total, the edx dataset includes 69878 users for 10677 movies.
+
+\begin{table}[H]
+\centering
+\caption{\label{tab:edxhead}First lines of edx data.}
+\centering
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{
+\begin{tabular}[t]{lrrrlll}
+\toprule
+  & userId & movieId & rating & timestamp & title & genres\\
+\midrule
+1 & 1 & 122 & 5 & 1996-08-02 11:24:06 & Boomerang (1992) & Comedy|Romance\\
+2 & 1 & 185 & 5 & 1996-08-02 10:58:45 & Net, The (1995) & Action|Crime|Thriller\\
+4 & 1 & 292 & 5 & 1996-08-02 10:57:01 & Outbreak (1995) & Action|Drama|Sci-Fi|Thriller\\
+5 & 1 & 316 & 5 & 1996-08-02 10:56:32 & Stargate (1994) & Action|Adventure|Sci-Fi\\
+6 & 1 & 329 & 5 & 1996-08-02 10:56:32 & Star Trek: Generations (1994) & Action|Adventure|Drama|Sci-Fi\\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+The second part, called final\_holdout\_test, will be used to validate the final model or algorithm by evaluating its performance through the RSME. We have ensured that the users and movies included in the validation data are also present in the edx data to avoid possible inconsistencies in predictions. Table \ref{tab:validhead} gives an overview of the validation data.In total, the validation dataset includes 68534 users for 9809 movies.
+
+\begin{table}[H]
+\centering
+\caption{\label{tab:validhead}First lines of validation data.}
+\centering
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{
+\begin{tabular}[t]{rrrlll}
+\toprule
+userId & movieId & rating & timestamp & title & genres\\
+\midrule
+1 & 231 & 5 & 1996-08-02 10:56:32 & Dumb \& Dumber (1994) & Comedy\\
+1 & 480 & 5 & 1996-08-02 11:00:53 & Jurassic Park (1993) & Action|Adventure|Sci-Fi|Thriller\\
+1 & 586 & 5 & 1996-08-02 11:07:48 & Home Alone (1990) & Children|Comedy\\
+2 & 151 & 3 & 1997-07-07 03:34:10 & Rob Roy (1995) & Action|Drama|Romance|War\\
+2 & 858 & 2 & 1997-07-07 03:20:45 & Godfather, The (1972) & Crime|Drama\\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\section{Exploratory data analysis (EDA)}\label{exploratory-data-analysis-eda}
+
+In this section, we propose to extend our understanding of the data through an exploratory analysis.
+
+\subsection{Sparsity of MovieLens Ratings Matrix}\label{sparsity-of-movielens-ratings-matrix}
+
+Figure \ref{fig:Sparsity} shows the matrix for a random sample of 100 movies and 100 users, with yellow indicating a user/movie combination for which we have a rating. In this way, we can better appreciate how sparse the matrix is.
+
+\begin{figure}[H]
+\includegraphics[width=0.8\linewidth]{ReportMovielens_dodema_files/figure-latex/Sparsity-1} \caption{Sparsity of MovieLens Ratings Matrix}\label{fig:Sparsity}
+\end{figure}
+
+\subsection{Rating distribution}\label{rating-distribution}
+
+Figure \ref{fig:distRat} shows that many users who rated the movies gave them 4 stars, followed by 3 stars, with 5 stars in third place. There are less half-star ratings than full-star ratings
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=0.6\linewidth]{ReportMovielens_dodema_files/figure-latex/distRat-1} 
+
+}
+
+\caption{Rating distribution}\label{fig:distRat}
+\end{figure}
+
+\subsection{Rating per movies and movies' rating histogram}\label{rating-per-movies-and-movies-rating-histogram}
+
+Figure \ref{fig:moviRat} shows that some movies are rated and watched by tens of thousands of users (blockbusters), while others (more numerous) are rated hundreds of times or even less.
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=0.9\linewidth]{ReportMovielens_dodema_files/figure-latex/moviRat-1} 
+
+}
+
+\caption{Rating per movies and movies' rating histogram}\label{fig:moviRat}
+\end{figure}
+
+\subsection{Rating per users and users' rating histogram}\label{rating-per-users-and-users-rating-histogram}
+
+As Figure \ref{fig:userRat} shows, some users are very active, rating thousands of movies, while others are less active, rating just a few dozen. We can also see that, on average, users rated very few movies.
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=0.9\linewidth]{ReportMovielens_dodema_files/figure-latex/userRat-1} 
+
+}
+
+\caption{Rating per users and users' rating histogram}\label{fig:userRat}
+\end{figure}
+
+\section{Analysis}\label{analysis}
+
+In this section, we intend to train different recommendation models or algorithms and evaluate their performance using well-known statistical regression metrics: mean absolute error and root mean square error. The best performing algorithm will be used for the final prediction.
+
+Mathematically, mean absolute error (MAE) is defined by :
+\begin{equation} 
+    MAE = \frac{1}{N}\sum_{u,i}\left\| y_{u,i}-\hat{y}_{u,i}\right\|
+  \label{eq:metricMAE}
+\end{equation}
+and root mean square error (RMSE) by:
+
+\begin{equation} 
+    RMSE = \sqrt{\frac{1}{N}\sum_{u,i}\left(y_{u,i}-\hat{y}_{u,i}\right)^{2}}
+  \label{eq:metricRMSE}
+\end{equation}\\
+We define \(y_{u,i}\) as the rating for movie \(i\) by user \(u\) and denote our prediction with \(\hat{y}_{u,i}\).
+
+\subsection{Modeling approach A: Popular, random, svd algorithms with recommendalab}\label{modeling-approach-a-popular-random-svd-algorithms-with-recommendalab}
+
+In this first approach, we'll use the recommenderlab package to implement 3 algorithms:
+
+\begin{itemize}
+\item
+  RANDOM : Randomly chosen movies. This creates random recommendations which can
+  be used as a baseline for recommender algorithm evaluation.
+\item
+  POPULAR : Popular movies. This is a non-personalized algorithm which recommends to
+  all users the most popular movies they have not rated yet.
+\item
+  SVD : This is a latent factor model using singular value decomposition (SVD) to estimate missing
+  ratings
+\end{itemize}
+
+Table \ref{tab:modelA} compares the performance of the three algorithms and shows that SVD gives better results in terms of RMSE and MAE.
+
+\begin{table}[H]
+\centering
+\caption{\label{tab:modelA}Algorithms performance.}
+\centering
+\begin{tabular}[t]{lrrr}
+\toprule
+Model & MAE & MSE & RMSE\\
+\midrule
+RANDOM & 1.5002057 & 3.3784723 & 1.8380621\\
+POPULAR & 0.6748350 & 0.7613361 & 0.8725458\\
+SVD & 0.6393417 & 0.6922737 & 0.8320299\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Modeling approach B: Linear Regression Model}\label{modeling-approach-b-linear-regression-model}
+
+In order to have a regression model with good performance while avoiding overtraining, and following the procedure in rafat {[}1{]}, we will make use of a regularization parameter \(\lambda\) in the model. This parameter will be estimated by cross-validation. The minimization equation of the model takes the following mathematical form :
+
+\begin{equation}
+    \frac{1}{N}\sum_{u,i}\left(y_{u,i}-\mu-b_{i}-b_{u}\right)^{2}+\lambda \left( \sum_{i} b_{i}^{2} + \sum_{u} b_{u}^{2}\right)
+    \label{eq:modelB}
+\end{equation}
+
+with \(\mu\) the average of all ratings, \(b_{i}\) the movie-specific effect, \(b_{u}\) the user-specific effect.
+
+Figure \ref{fig:modelB} shows the performance of the model for different \(\lambda\) values, allowing us to pick the optimum value.
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=0.8\linewidth]{ReportMovielens_dodema_files/figure-latex/modelB-1} 
+
+}
+
+\caption{ RMSE values as a function of lambda }\label{fig:modelB}
+\end{figure}
+
+The optimal \(\lambda\) is:
+4.75
+
+It's worth noting that here the lambda value is only optimized on 90\% of the edx data, which is the training data for the model. The lambda value found is used to evaluate the model on test data made up of 10\% of the edx data. Model performance is reported in Table \ref{tab:modelB2}. We can see that the model performs significantly better than the RANDOM and POPULAR algorithms, but not as well as the SVD algorithm.
+
+\begin{table}[H]
+\centering
+\caption{\label{tab:modelB2}Algorithms performance.}
+\centering
+\begin{tabular}[t]{lrrr}
+\toprule
+Model & MAE & MSE & RMSE\\
+\midrule
+RANDOM & 1.5002057 & 3.3784723 & 1.8380621\\
+POPULAR & 0.6748350 & 0.7613361 & 0.8725458\\
+SVD & 0.6393417 & 0.6922737 & 0.8320299\\
+Linear Regression Model & 0.6699801 & 0.7491352 & 0.8655260\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Modeling approach C: Matrix factorization}\label{modeling-approach-c-matrix-factorization}
+
+As described in Angel {[}1{]} Matrix Factorization (MF) is a process to find two factor matrices, \(P\in \mathbb{R}^{k\times m} and Q \in \mathbb{R}^{k\times m}\) , to describe a given \(m\)-by-\(n\) training matrix \(R\) in which some entries may be missing.
+For rating prediction, the entry value \(r_{u,i}\in \mathbb{R}\) indicates that the \(i\)th item was rated \(r_{u,i}\) by the \(u\)th user. Once \(P\) and \(Q\) are learned, a missing rating at the \((u^{\prime}, i^{\prime})\) entry can be predicted by the inner product of the \(u^{\prime}\)th column of \(P\) (i.e., \(p_{u^{\prime}}\) ) and the \(i^{\prime}\)th column of \(Q\) (i.e., \(q_{i^{\prime}}\) ). It means that we can generate the predicted scores on all movies for a user, and then the one with highest score may be recommended. MF can be formulated as a non-convex optimization problem :
+
+\begin{equation}
+    \min_{P,Q} \sum_{(u,i)}\left[ f(p_{u},q_{i},r_{u,i}) + \mu_{p}\|p_{u}\|_{1} + \mu_{q}\|q_{i}\|_{1} + \frac{\lambda_{p}}{2}\|p_{u}\|_{2}^{2} + \frac{\lambda_{q}}{2}\|q_{i}\|_{2}^{2}\right] 
+    \label{eq:modelC}
+\end{equation}
+
+where \(r_{u,i}\) is the \((u, i)\) entry of \(R\), \(f (.)\) is a non-convex loss function of \(p_{u}\) and \(q_{i}\), and \(\mu_{p}\),
+\(\mu_{q}\), \(\lambda_{p}\), and \(\lambda_{q}\) are regularization coefficients.
+
+The results shown in Table \ref{tab:modelC2} demonstrate the high performance of the matrix factorization model.
+
+\begin{table}[H]
+\centering
+\caption{\label{tab:modelC2}Algorithms performance on test data.}
+\centering
+\begin{tabular}[t]{lrrr}
+\toprule
+Model & MAE & MSE & RMSE\\
+\midrule
+RANDOM & 1.5002057 & 3.3784723 & 1.8380621\\
+POPULAR & 0.6748350 & 0.7613361 & 0.8725458\\
+SVD & 0.6393417 & 0.6922737 & 0.8320299\\
+Linear Regression Model & 0.6699801 & 0.7491352 & 0.8655260\\
+Matrix factorization & 0.6050095 & 0.6180481 & 0.7861603\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Choosing the best-performing model.}\label{choosing-the-best-performing-model.}
+
+A comparative analysis of the results shown in Table \ref{tab:modelC2} leads to the conclusion that the matrix factorization model performs best in terms of RMSE. This model is then chosen as the final model.
+
+\subsection{Predictions on the final holdout data}\label{predictions-on-the-final-holdout-data}
+
+The final model is re-trained on all edx dataset, then evaluated on the validation dataset. The results show an improvement in model performance. This is due to the larger size of the data.
+
+\section{Results}\label{results}
+
+Our analysis shows that the matrix factorization algorithm is the best performing of the 5 algorithms trained on edx data. Performance in terms of RMSE on the validation data is \textbf{0.7809783}. That said, we also note the good performance of the POPULAR, SVD and linear regression algorithms with a regularization parameter, which are all below 0.87.
+
+The top ten (10) movies recommended by the final model are shown in Table \ref{tab:fmodpred} with the average rating and the count of times each movie is recommended.
+
+\begin{table}[H]
+\centering
+\caption{\label{tab:fmodpred}Top 10 movie recommendation by the final model.}
+\centering
+\begin{tabular}[t]{lrr}
+\toprule
+Title & Rating & Count\\
+\midrule
+Schindler's List (1993) & 4.363390 & 2584\\
+Lord of the Rings: The Return of the King, The (2003) & 4.155627 & 1253\\
+Pulp Fiction (1994) & 4.181039 & 3502\\
+Shawshank Redemption, The (1994) & 4.476213 & 3111\\
+Matrix, The (1999) & 4.228134 & 2321\\
+\addlinespace
+Rhyme \& Reason (1997) & 4.000000 & 2\\
+Happy Together (1989) & 2.875000 & 4\\
+Star Wars: Episode IV - A New Hope (a.k.a. Star Wars) (1977) & 4.210435 & 2894\\
+Fight Club (1999) & 4.191948 & 1602\\
+Star Wars: Episode V - The Empire Strikes Back (1980) & 4.207028 & 2362\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Conclusion}\label{conclusion}
+
+In this study, we explored the Movielens-10M data. First, we used various visualizations to understand the data. Then 5 algorithms were chosen and trained on part of the data. The analysis revealed that the matrix factorization model is the best model, with an RMSE performance of \textbf{0.7809783}. This model will therefore be ideal for our movie recommendation system.
+
+\end{document}
