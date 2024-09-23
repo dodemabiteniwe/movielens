@@ -1,6 +1,7 @@
 % Options for packages loaded elsewhere
 \PassOptionsToPackage{unicode}{hyperref}
 \PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
 %
 \documentclass[
 ]{article}
@@ -64,6 +65,39 @@
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 \setcounter{secnumdepth}{5}
+% definitions for citeproc citations
+\NewDocumentCommand\citeproctext{}{}
+\NewDocumentCommand\citeproc{mm}{%
+  \begingroup\def\citeproctext{#2}\cite{#1}\endgroup}
+\makeatletter
+ % allow citations to break across lines
+ \let\@cite@ofmt\@firstofone
+ % avoid brackets around text for \cite:
+ \def\@biblabel#1{}
+ \def\@cite#1#2{{#1\if@tempswa , #2\fi}}
+\makeatother
+\newlength{\cslhangindent}
+\setlength{\cslhangindent}{1.5em}
+\newlength{\csllabelwidth}
+\setlength{\csllabelwidth}{3em}
+\newenvironment{CSLReferences}[2] % #1 hanging-indent, #2 entry-spacing
+ {\begin{list}{}{%
+  \setlength{\itemindent}{0pt}
+  \setlength{\leftmargin}{0pt}
+  \setlength{\parsep}{0pt}
+  % turn on hanging indent if param 1 is 1
+  \ifodd #1
+   \setlength{\leftmargin}{\cslhangindent}
+   \setlength{\itemindent}{-1\cslhangindent}
+  \fi
+  % set entry spacing
+  \setlength{\itemsep}{#2\baselineskip}}}
+ {\end{list}}
+\usepackage{calc}
+\newcommand{\CSLBlock}[1]{\hfill\break\parbox[t]{\linewidth}{\strut\ignorespaces#1\strut}}
+\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{\strut#1\strut}}
+\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{\strut#1\strut}}
+\newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
 \usepackage{float}
 \usepackage{booktabs}
 \usepackage{longtable}
@@ -87,31 +121,38 @@
 \hypersetup{
   pdftitle={Recommender Systems with R: Model for predicting movie ratings.},
   pdfauthor={Dodema BITENIWE},
-  hidelinks,
+  colorlinks=true,
+  linkcolor={blue},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={red},
   pdfcreator={LaTeX via pandoc}}
 
 \title{Recommender Systems with R: Model for predicting movie ratings.}
 \author{Dodema BITENIWE}
-\date{20 septembre, 2024}
+\date{23 septembre, 2024}
 
 \begin{document}
 \maketitle
 
 {
+\hypersetup{linkcolor=}
 \setcounter{tocdepth}{2}
 \tableofcontents
 }
+\newpage
+
 \section{Project overview}\label{project-overview}
 
 This project is part of the Data Science professional certification pathway offered by HarvardX on edx. It is the ninth and final course of a multi-part course. In this part, we demonstrate our mastery of the skills acquired during the course by building a machine learning model. The idea is to build a recommendation system on movie data. The system's aim is to suggest movies to users, taking into account their profiles, the movies they have already watched and rated, and similar profiles.
 
-The data used in this project comes from the grouplens website (\url{https://grouplens.org/datasets/movielens/latest/}), where we can find a variety of data for Data Science practice. The project data set is a compilation of over 10 million ratings for more than 10,000 movies by 72,000 users. This data is known as the MovieLens 10M Dataset.
+The data used in this project comes from the \href{https://grouplens.org/datasets/movielens/latest/}{grouplens website}, where we can find a variety of data for Data Science practice. The project data set is a compilation of over 10 million ratings for more than 10,000 movies by 72,000 users. This data is known as the MovieLens 10M Dataset.
 
 In this report, we will start with an organization of the data, followed by an exploratory analysis of the data, then the construction of the model and presentation of the results, and finally the conclusion.
 
 \section{Data processing and organization}\label{data-processing-and-organization}
 
-The data was downloaded from the site (\url{http://grouplens.org/datasets/movielens/10m/}), then processed and organized according to the project guidelines, in this case following the code provided for this purpose. For analysis and modelling purposes, the data is divided into two parts. The first part, called edx, contains 90\% of the original data and will be used to train and test the various algorithms.Table \ref{tab:edxhead} gives an overview of the edx data.In total, the edx dataset includes 69878 users for 10677 movies.
+The data was downloaded from this \href{http://grouplens.org/datasets/movielens/10m/}{site}, then processed and organized according to the project guidelines, in this case following the code provided for this purpose. For analysis and modelling purposes, the data is divided into two parts. The first part, called edx, contains 90\% of the original data and will be used to train and test the various algorithms.Table \ref{tab:edxhead} gives an overview of the edx data.In total, the edx dataset includes 69878 users for 10677 movies.
 
 \begin{table}[H]
 \centering
@@ -153,7 +194,7 @@ userId & movieId & rating & timestamp & title & genres\\
 
 \section{Exploratory data analysis (EDA)}\label{exploratory-data-analysis-eda}
 
-In this section, we propose to extend our understanding of the data through an exploratory analysis.
+In this section, we propose to extend our understanding of the data through an exploratory analysis. We'd like to mention two references (\href{https://www.kaggle.com/code/amirmotefaker/movie-recommendation-system-using-r-best}{kaggle} and Irizarry (\citeproc{ref-raf}{n.d.})) that have inspired us in the following analysis.
 
 \subsection{Sparsity of MovieLens Ratings Matrix}\label{sparsity-of-movielens-ratings-matrix}
 
@@ -221,7 +262,7 @@ We define \(y_{u,i}\) as the rating for movie \(i\) by user \(u\) and denote our
 
 \subsection{Modeling approach A: Popular, random, svd algorithms with recommendalab}\label{modeling-approach-a-popular-random-svd-algorithms-with-recommendalab}
 
-In this first approach, we'll use the recommenderlab package to implement 3 algorithms:
+In this first approach, we'll use the recommenderlab package (\citeproc{ref-Hahsler2011recom}{Hahsler 2011}) to implement 3 algorithms:
 
 \begin{itemize}
 \item
@@ -254,7 +295,7 @@ SVD & 0.6393417 & 0.6922737 & 0.8320299\\
 
 \subsection{Modeling approach B: Linear Regression Model}\label{modeling-approach-b-linear-regression-model}
 
-In order to have a regression model with good performance while avoiding overtraining, and following the procedure in rafat {[}1{]}, we will make use of a regularization parameter \(\lambda\) in the model. This parameter will be estimated by cross-validation. The minimization equation of the model takes the following mathematical form :
+In order to have a regression model with good performance while avoiding overtraining, and following the procedure in (\citeproc{ref-raf}{Irizarry, n.d.}), we will make use of a regularization parameter \(\lambda\) in the model. This parameter will be estimated by cross-validation. The minimization equation of the model takes the following mathematical form :
 
 \begin{equation}
     \frac{1}{N}\sum_{u,i}\left(y_{u,i}-\mu-b_{i}-b_{u}\right)^{2}+\lambda \left( \sum_{i} b_{i}^{2} + \sum_{u} b_{u}^{2}\right)
@@ -297,7 +338,7 @@ Linear Regression Model & 0.6699801 & 0.7491352 & 0.8655260\\
 
 \subsection{Modeling approach C: Matrix factorization}\label{modeling-approach-c-matrix-factorization}
 
-As described in Angel {[}1{]} Matrix Factorization (MF) is a process to find two factor matrices, \(P\in \mathbb{R}^{k\times m} and Q \in \mathbb{R}^{k\times m}\) , to describe a given \(m\)-by-\(n\) training matrix \(R\) in which some entries may be missing.
+As described in (\citeproc{ref-JMLR}{Chin et al. 2016}) Matrix Factorization (MF) is a process to find two factor matrices, \(P\in \mathbb{R}^{k\times m} and Q \in \mathbb{R}^{k\times m}\) , to describe a given \(m\)-by-\(n\) training matrix \(R\) in which some entries may be missing.
 For rating prediction, the entry value \(r_{u,i}\in \mathbb{R}\) indicates that the \(i\)th item was rated \(r_{u,i}\) by the \(u\)th user. Once \(P\) and \(Q\) are learned, a missing rating at the \((u^{\prime}, i^{\prime})\) entry can be predicted by the inner product of the \(u^{\prime}\)th column of \(P\) (i.e., \(p_{u^{\prime}}\) ) and the \(i^{\prime}\)th column of \(Q\) (i.e., \(q_{i^{\prime}}\) ). It means that we can generate the predicted scores on all movies for a user, and then the one with highest score may be recommended. MF can be formulated as a non-convex optimization problem :
 
 \begin{equation}
@@ -367,5 +408,21 @@ Star Wars: Episode V - The Empire Strikes Back (1980) & 4.207028 & 2362\\
 \section{Conclusion}\label{conclusion}
 
 In this study, we explored the Movielens-10M data. First, we used various visualizations to understand the data. Then 5 algorithms were chosen and trained on part of the data. The analysis revealed that the matrix factorization model is the best model, with an RMSE performance of \textbf{0.7809783}. This model will therefore be ideal for our movie recommendation system.
+
+\section*{References}\label{references}
+\addcontentsline{toc}{section}{References}
+
+\phantomsection\label{refs}
+\begin{CSLReferences}{1}{0}
+\bibitem[\citeproctext]{ref-JMLR}
+Chin, Wei-Sheng, Bo-Wen Yuan, Meng-Yuan Yang, Yong Zhuang, Yu-Chin Juan, and Chih-Jen Lin. 2016. {``LIBMF: A Library for Parallel Matrix Factorization in Shared-Memory Systems.''} \emph{Journal of Machine Learning Research} 17 (86): 1--5. \url{http://jmlr.org/papers/v17/15-471.html}.
+
+\bibitem[\citeproctext]{ref-Hahsler2011recom}
+Hahsler, Michael. 2011. {``Recommenderlab : A Framework for Developing and Testing Recommendation Algorithms.''} In. \url{https://api.semanticscholar.org/CorpusID:9405286}.
+
+\bibitem[\citeproctext]{ref-raf}
+Irizarry, Rafael A. n.d. \emph{Introduction to Data Science}. https://rafalab.github.io/dsbook/: HarvardX.
+
+\end{CSLReferences}
 
 \end{document}

@@ -6,17 +6,24 @@ output:
   bookdown::pdf_document2:
     keep_tex: true
     extra_dependencies: ["float"]
+bibliography: ["movies.bib"]
+biblio-style: "apalike"
+link-citations: true
+linkcolor: blue
+urlcolor: red
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ```
 
+\newpage
+
 # Project overview
 
 This project is part of the Data Science professional certification pathway offered by HarvardX on edx. It is the ninth and final course of a multi-part course. In this part, we demonstrate our mastery of the skills acquired during the course by building a machine learning model. The idea is to build a recommendation system on movie data. The system's aim is to suggest movies to users, taking into account their profiles, the movies they have already watched and rated, and similar profiles. 
 
-The data used in this project comes from the grouplens website (https://grouplens.org/datasets/movielens/latest/), where we can find a variety of data for Data Science practice. The project data set is a compilation of over 10 million ratings for more than 10,000 movies by 72,000 users. This data is known as the MovieLens 10M Dataset.
+The data used in this project comes from the [grouplens website](https://grouplens.org/datasets/movielens/latest/), where we can find a variety of data for Data Science practice. The project data set is a compilation of over 10 million ratings for more than 10,000 movies by 72,000 users. This data is known as the MovieLens 10M Dataset.
 
 In this report, we will start with an organization of the data, followed by an exploratory analysis of the data, then the construction of the model and presentation of the results, and finally the conclusion. 
 
@@ -50,7 +57,7 @@ final_holdout_test$timestamp <- as.POSIXct(final_holdout_test$timestamp, origin 
 ```
 
 
-The data was downloaded from the site (http://grouplens.org/datasets/movielens/10m/), then processed and organized according to the project guidelines, in this case following the code provided for this purpose. For analysis and modelling purposes, the data is divided into two parts. The first part, called edx, contains 90% of the original data and will be used to train and test the various algorithms.Table \@ref(tab:edxhead) gives an overview of the edx data.In total, the edx dataset includes 69878 users for 10677 movies.
+The data was downloaded from this [site](http://grouplens.org/datasets/movielens/10m/), then processed and organized according to the project guidelines, in this case following the code provided for this purpose. For analysis and modelling purposes, the data is divided into two parts. The first part, called edx, contains 90% of the original data and will be used to train and test the various algorithms.Table \@ref(tab:edxhead) gives an overview of the edx data.In total, the edx dataset includes 69878 users for 10677 movies.
 ```{r edxhead, echo=FALSE, cache=TRUE}
 library(knitr)
 library(kableExtra)
@@ -70,7 +77,7 @@ kable(
 
 # Exploratory data analysis (EDA)
 
-In this section, we propose to extend our understanding of the data through an exploratory analysis. 
+In this section, we propose to extend our understanding of the data through an exploratory analysis. We'd like to mention two references ([kaggle](https://www.kaggle.com/code/amirmotefaker/movie-recommendation-system-using-r-best) and @raf) that have inspired us in the following analysis. 
 
 ## Sparsity of MovieLens Ratings Matrix
 Figure \@ref(fig:Sparsity) shows the matrix for a random sample of 100 movies and 100 users, with yellow indicating a user/movie combination for which we have a rating. In this way, we can better appreciate how sparse the matrix is.
@@ -207,7 +214,7 @@ We define $y_{u,i}$ as the rating for movie $i$ by user $u$ and denote our predi
 
 ##  Modeling approach A: Popular, random, svd algorithms with recommendalab
 
-In this first approach, we'll use the recommenderlab package to implement 3 algorithms:
+In this first approach, we'll use the recommenderlab package [@Hahsler2011recom] to implement 3 algorithms:
 
 - RANDOM : Randomly chosen movies. This creates random recommendations which can
 be used as a baseline for recommender algorithm evaluation.
@@ -267,7 +274,7 @@ kable(
 
 ##  Modeling approach B: Linear Regression Model
 
-In order to have a regression model with good performance while avoiding overtraining, and following the procedure in rafat [1], we will make use of a regularization parameter $\lambda$ in the model. This parameter will be estimated by cross-validation. The minimization equation of the model takes the following mathematical form : 
+In order to have a regression model with good performance while avoiding overtraining, and following the procedure in [@raf], we will make use of a regularization parameter $\lambda$ in the model. This parameter will be estimated by cross-validation. The minimization equation of the model takes the following mathematical form : 
 
 \begin{equation}
 	\frac{1}{N}\sum_{u,i}\left(y_{u,i}-\mu-b_{i}-b_{u}\right)^{2}+\lambda \left( \sum_{i} b_{i}^{2} + \sum_{u} b_{u}^{2}\right)
@@ -384,7 +391,7 @@ kable(
 
 ##  Modeling approach C: Matrix factorization
 
-As described in Angel [1] Matrix Factorization (MF) is a process to find two factor matrices, $P\in \mathbb{R}^{k\times m} and Q \in \mathbb{R}^{k\times m}$ , to describe a given $m$-by-$n$ training matrix $R$ in which some entries may be missing.
+As described in [@JMLR] Matrix Factorization (MF) is a process to find two factor matrices, $P\in \mathbb{R}^{k\times m} and Q \in \mathbb{R}^{k\times m}$ , to describe a given $m$-by-$n$ training matrix $R$ in which some entries may be missing.
 For rating prediction, the entry value $r_{u,i}\in \mathbb{R}$ indicates that the $i$th item was rated $r_{u,i}$ by the $u$th user. Once $P$ and $Q$ are learned, a missing rating at the $(u^{\prime}, i^{\prime})$ entry can be predicted by the inner product of the $u^{\prime}$th column of $P$ (i.e., $p_{u^{\prime}}$ ) and the $i^{\prime}$th column of $Q$ (i.e., $q_{i^{\prime}}$ ). It means that we can generate the predicted scores on all movies for a user, and then the one with highest score may be recommended. MF can be formulated as a non-convex optimization problem :
 
 \begin{equation}
@@ -524,3 +531,7 @@ kable(
 # Conclusion
 
 In this study, we explored the Movielens-10M data. First, we used various visualizations to understand the data. Then 5 algorithms were chosen and trained on part of the data. The analysis revealed that the matrix factorization model is the best model, with an RMSE performance of **`r RMSE_f`**. This model will therefore be ideal for our movie recommendation system.
+
+# References
+
+
