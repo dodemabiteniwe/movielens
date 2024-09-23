@@ -1,0 +1,537 @@
+---
+title: 'Recommender Systems with R: Model for predicting movie ratings.'
+author: "Dodema BITENIWE"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  bookdown::pdf_document2:
+    keep_tex: true
+    extra_dependencies: ["float"]
+bibliography: ["movies.bib"]
+biblio-style: "apalike"
+link-citations: true
+linkcolor: blue
+urlcolor: red
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+\newpage
+
+# Project overview
+
+This project is part of the Data Science professional certification pathway offered by HarvardX on edx. It is the ninth and final course of a multi-part course. In this part, we demonstrate our mastery of the skills acquired during the course by building a machine learning model. The idea is to build a recommendation system on movie data. The system's aim is to suggest movies to users, taking into account their profiles, the movies they have already watched and rated, and similar profiles. 
+
+The data used in this project comes from the [grouplens website](https://grouplens.org/datasets/movielens/latest/), where we can find a variety of data for Data Science practice. The project data set is a compilation of over 10 million ratings for more than 10,000 movies by 72,000 users. This data is known as the MovieLens 10M Dataset.
+
+In this report, we will start with an organization of the data, followed by an exploratory analysis of the data, then the construction of the model and presentation of the results, and finally the conclusion. 
+
+# Data processing and organization
+
+```{r dataset, echo=FALSE}
+# Load the necessary library and dataset
+library(tidyverse)
+library(caret)
+library(Matrix)
+library(grDevices)
+library(dplyr)
+library(ggplot2)
+library(cowplot)
+library(ggthemes)
+library(lubridate)
+library(Metrics)
+library(recosystem)
+library(scales)
+library(stringr)
+library(tibble)
+library(tidyr)
+library(ggpubr)
+library(knitr)
+library(kableExtra)
+
+load("../rdas/edx.rda")
+load("../rdas/final_holdout_test.rda")
+edx$timestamp <- as.POSIXct(edx$timestamp, origin = "1970-01-01")
+final_holdout_test$timestamp <- as.POSIXct(final_holdout_test$timestamp, origin = "1970-01-01")
+```
+
+
+The data was downloaded from this [site](http://grouplens.org/datasets/movielens/10m/), then processed and organized according to the project guidelines, in this case following the code provided for this purpose. For analysis and modelling purposes, the data is divided into two parts. The first part, called edx, contains 90% of the original data and will be used to train and test the various algorithms.Table \@ref(tab:edxhead) gives an overview of the edx data.In total, the edx dataset includes 69878 users for 10677 movies.
+```{r edxhead, echo=FALSE, cache=TRUE}
+library(knitr)
+library(kableExtra)
+kable(
+  head(edx,5), booktabs = TRUE, caption = "First lines of edx data.")%>%
+  kable_styling(latex_options = c("HOLD_position","scale_down"))
+```
+
+
+The second part, called final_holdout_test, will be used to validate the final model or algorithm by evaluating its performance through the RSME. We have ensured that the users and movies included in the validation data are also present in the edx data to avoid possible inconsistencies in predictions. Table \@ref(tab:validhead) gives an overview of the validation data.In total, the validation dataset includes 68534 users for 9809 movies. 
+
+```{r validhead, echo=FALSE, cache=TRUE}
+kable(
+  head(final_holdout_test,5), booktabs = TRUE, caption = "First lines of validation data.")%>%
+  kable_styling(latex_options = c("HOLD_position","scale_down"))
+```
+
+# Exploratory data analysis (EDA)
+
+In this section, we propose to extend our understanding of the data through an exploratory analysis. We'd like to mention two references ([kaggle](https://www.kaggle.com/code/amirmotefaker/movie-recommendation-system-using-r-best) and @raf) that have inspired us in the following analysis. 
+
+## Sparsity of MovieLens Ratings Matrix
+Figure \@ref(fig:Sparsity) shows the matrix for a random sample of 100 movies and 100 users, with yellow indicating a user/movie combination for which we have a rating. In this way, we can better appreciate how sparse the matrix is.
+
+```{r Sparsity, fig.cap= "Sparsity of MovieLens Ratings Matrix",out.width = "80%",results='hide', fig.pos='H', cache=TRUE}
+# Sample 100 random users and movies
+set.seed(1)
+sampled_users <- sample(unique(edx$userId), 100)
+sampled_movies <- sample(unique(edx$movieId), 100)
+sampled_data <- subset(edx, userId %in% sampled_users  & movieId %in% sampled_movies)
+sparse_matrix <- sparseMatrix(i = as.integer(factor(sampled_data$userId, levels = sampled_users)),
+                              j = as.integer(factor(sampled_data$movieId, levels = sampled_movies)),
+                              x = sampled_data$rating)
+full_matrix <- as.matrix(sparse_matrix)
+full_matrix[full_matrix == 0] <- NA
+# Plot the matrix using image
+image(x = seq_len(ncol(full_matrix)), y = seq_len(nrow(full_matrix)), z = t(full_matrix[nrow(full_matrix):1, ]),
+      xlab = "Users", ylab = "Movies",
+      col = "yellow", breaks = c(min(full_matrix, na.rm = TRUE), max(full_matrix, na.rm = TRUE)),
+      axes = TRUE, # Enable axes for clarity
+      xaxt = 'n', yaxt = 'n')
+axis(1, at = seq(0,101,10), labels = TRUE)
+axis(2, at = seq(0,101,10), labels = TRUE)
+```
+
+## Rating distribution
+
+Figure \@ref(fig:distRat) shows that many users who rated the movies gave them 4 stars, followed by 3 stars, with 5 stars in third place. There are less half-star ratings than full-star ratings 
+```{r distRat, fig.cap="Rating distribution",out.width = "60%",fig.align = 'center', fig.pos='H', cache=TRUE}
+edx %>%
+  group_by(rating) %>%
+  summarize(count = n()) %>%
+  ggplot(aes(x = rating, y = count)) +
+  geom_bar(stat = "identity", fill = "#db88ff") +
+  xlab("Rating") +
+  ylab("Count") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(n.breaks = 10) +
+  theme_economist()
+```
+
+## Rating per movies and movies' rating histogram
+
+Figure \@ref(fig:moviRat) shows that some movies are rated and watched by tens of thousands of users (blockbusters), while others (more numerous) are rated hundreds of times or even less.
+
+```{r moviRat, fig.cap="Rating per movies and movies' rating histogram",fig.dim = c(8, 4), out.width = "90%",fig.align = 'center', fig.pos='H', cache=TRUE}
+######## Rating per movies ########
+plot_mov1 <- edx%>%
+  group_by(movieId) %>%
+  summarize(count = n()) %>%
+  ggplot(aes(x = movieId, y = count)) +
+  geom_point(alpha = 0.2, color = "#4020dd") +
+  geom_smooth(color = "red") +
+  ggtitle("Ratings per movie") +
+  xlab("Movies") +
+  ylab("Number of ratings") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(n.breaks = 10) +
+  theme(axis.text.x = element_text(size=8,face="bold"),
+        axis.text.y = element_text(size=8,face="bold"))
+########### Movies' rating histogram ###################
+plot_mov2 <- edx %>%
+  group_by(movieId) %>%
+  summarize(count = n()) %>%
+  ggplot(aes(x = count)) +
+  geom_histogram(fill = "#db88ff", color = "#4020dd") +
+  ggtitle("Movies' rating histogram") +
+  xlab("Rating count") +
+  ylab("Number of movies") +
+  scale_y_continuous(labels = comma) +
+  scale_x_log10(n.breaks = 10) +
+  theme(axis.text.x = element_text(size=8,face="bold"),
+        axis.text.y = element_text(size=8,face="bold"))
+
+ggarrange(plot_mov1, plot_mov2,  
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1)
+```
+
+## Rating per users and users' rating histogram
+
+As Figure \@ref(fig:userRat) shows, some users are very active, rating thousands of movies, while others are less active, rating just a few dozen. We can also see that, on average, users rated very few movies. 
+
+```{r userRat, fig.cap="Rating per users and users' rating histogram",fig.dim = c(8, 4), out.width = "90%",fig.align = 'center', fig.pos='H', cache=TRUE}
+######## Rating per users ########
+plot_user1 <- edx%>%
+  group_by(userId) %>%
+  summarize(count = n()) %>%
+  ggplot(aes(x = userId, y = count)) +
+  geom_point(alpha = 0.2, color = "#4020dd") +
+  geom_smooth(color = "red") +
+  ggtitle("Ratings per user") +
+  xlab("Users") +
+  ylab("Number of ratings") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(n.breaks = 10) +
+  theme(axis.text.x = element_text(size=8,face="bold"),
+        axis.text.y = element_text(size=8,face="bold"))
+########### Users' rating histogram ###################
+plot_user2 <- edx %>%
+  group_by(userId) %>%
+  summarize(count = n()) %>%
+  ggplot(aes(x = count)) +
+  geom_histogram(fill = "#db88ff", color = "#4020dd") +
+  ggtitle("Users' rating histogram") +
+  xlab("Rating count") +
+  ylab("Number of users") +
+  scale_y_continuous(labels = comma) +
+  scale_x_log10(n.breaks = 10) +
+  theme(axis.text.x = element_text(size=8,face="bold"),
+        axis.text.y = element_text(size=8,face="bold"))
+
+ggarrange(plot_user1, plot_user2,  
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1)
+```
+
+
+# Analysis
+In this section, we intend to train different recommendation models or algorithms and evaluate their performance using well-known statistical regression metrics: mean absolute error and root mean square error. The best performing algorithm will be used for the final prediction. 
+
+Mathematically, mean absolute error (MAE) is defined by : 
+\begin{equation} 
+  	MAE = \frac{1}{N}\sum_{u,i}\left\| y_{u,i}-\hat{y}_{u,i}\right\|
+  (\#eq:metricMAE)
+\end{equation} 
+and root mean square error (RMSE) by:
+
+\begin{equation} 
+  	RMSE = \sqrt{\frac{1}{N}\sum_{u,i}\left(y_{u,i}-\hat{y}_{u,i}\right)^{2}}
+  (\#eq:metricRMSE)
+\end{equation}  
+We define $y_{u,i}$ as the rating for movie $i$ by user $u$ and denote our prediction with $\hat{y}_{u,i}$.
+
+##  Modeling approach A: Popular, random, svd algorithms with recommendalab
+
+In this first approach, we'll use the recommenderlab package [@Hahsler2011recom] to implement 3 algorithms:
+
+- RANDOM : Randomly chosen movies. This creates random recommendations which can
+be used as a baseline for recommender algorithm evaluation.
+
+- POPULAR : Popular movies. This is a non-personalized algorithm which recommends to
+all users the most popular movies they have not rated yet.
+
+- SVD : This is a latent factor model using singular value decomposition (SVD) to estimate missing
+ratings
+
+Table \@ref(tab:modelA) compares the performance of the three algorithms and shows that SVD gives better results in terms of RMSE and MAE.
+
+```{r modelA, cache=TRUE}
+library("recommenderlab")
+
+# Convert the data to a realRatingMatrix
+rat_mat <- as(select(edx,userId,movieId,rating), "realRatingMatrix")
+###############################
+# Build and Evaluate Models
+######################
+
+set.seed(123)
+sample_split <- sample(x = 1:nrow(rat_mat), size = 0.8 * nrow(rat_mat))
+train_data <- rat_mat[sample_split, ]
+test_data <- rat_mat[-sample_split, ]
+
+# Define the models to be evaluated
+model_list <- c("POPULAR","RANDOM", "SVD")
+
+# Function to evaluate models
+evaluate_models <- function(train, test, models) {
+  results <- list()
+  
+  for (model_name in models) {
+    model <- Recommender(train, method = model_name)
+    prediction <- predict(model, test, type = "ratingMatrix")
+    
+    results[[model_name]] <- calcPredictionAccuracy(prediction, test, byUser = FALSE)
+  }
+  
+  return(results)
+}
+
+# Run the evaluation
+results <- evaluate_models(train_data, test_data, model_list)
+
+evaluation <- tibble(Model = c("RANDOM", "POPULAR", "SVD"),
+                     MAE = c(results$RANDOM[[3]], results$POPULAR[[3]], results$SVD[[3]]),
+                     MSE = c(results$RANDOM[[2]], results$POPULAR[[2]], results$SVD[[2]]),
+                     RMSE = c(results$RANDOM[[1]], results$POPULAR[[1]], results$SVD[[1]]))
+
+kable(
+  evaluation, booktabs = TRUE, caption = "Algorithms performance.")%>%
+  kable_styling(latex_options = "HOLD_position")
+
+```
+
+##  Modeling approach B: Linear Regression Model
+
+In order to have a regression model with good performance while avoiding overtraining, and following the procedure in [@raf], we will make use of a regularization parameter $\lambda$ in the model. This parameter will be estimated by cross-validation. The minimization equation of the model takes the following mathematical form : 
+
+\begin{equation}
+	\frac{1}{N}\sum_{u,i}\left(y_{u,i}-\mu-b_{i}-b_{u}\right)^{2}+\lambda \left( \sum_{i} b_{i}^{2} + \sum_{u} b_{u}^{2}\right)
+	(\#eq:modelB)
+\end{equation}
+
+with $\mu$ the average of all ratings, $b_{i}$  the movie-specific effect, $b_{u}$  the user-specific effect. 
+
+Figure \@ref(fig:modelB) shows the performance of the model for different $\lambda$ values, allowing us to pick the optimum value. 
+
+```{r modelB, fig.cap= " RMSE values as a function of lambda ",out.width = "80%",fig.align = 'center', fig.pos='H', cache=TRUE}
+###############################################"
+# Modeling approach B: Linear Regression Model
+############################
+# Train-test split
+###################################
+set.seed(1)
+train_index <- createDataPartition(edx$rating, times = 1, p = 0.9, list = FALSE)
+train_set <- edx[train_index,]
+temp_test_set <- edx[-train_index,]
+# Make sure userId and movieId in the testing set are also in the training set set
+test_set <- temp_test_set %>% 
+  semi_join(train_set, by = "movieId") %>%
+  semi_join(train_set, by = "userId")
+# Add rows removed from the testing set back into the training set set
+removed <- anti_join(temp_test_set, test_set)
+train_set <- rbind(train_set, removed)
+
+# Lambda's parameter for regularisation in model_A
+
+# Regularization function
+regularization <- function(lambda, train_set, test_set){
+  mu <- mean(train_set$rating)
+  
+  b_i <- train_set %>% 
+    group_by(movieId) %>%
+    summarize(b_i = sum(rating - mu) / (n() + lambda))
+  
+  b_u <- train_set %>% 
+    left_join(b_i, by="movieId") %>%
+    filter(!is.na(b_i)) %>%
+    group_by(userId) %>%
+    summarize(b_u = sum(rating - mu - b_i) / (n() + lambda))
+  
+  predicted_ratings <- test_set %>% 
+    left_join(b_i, by = "movieId") %>%
+    left_join(b_u, by = "userId") %>%
+    filter(!is.na(b_i), !is.na(b_u)) %>%
+    mutate(pred = mu + b_i + b_u) %>%
+    pull(pred)
+  
+  return(Metrics::rmse(predicted_ratings, test_set$rating))
+}
+
+# Lambda
+lambdas <- seq(0, 10, 0.25)
+lambdas_rmse <- sapply(lambdas,
+                       regularization, 
+                       train_set = train_set, 
+                       test_set = test_set)
+lambdas_tibble <- tibble(Lambda = lambdas, RMSE = lambdas_rmse)
+lambdas_tibble %>%
+  ggplot(aes(x = Lambda, y = RMSE)) +
+  geom_point() +
+  ggtitle("Lambda's effect on RMSE") +
+  xlab("Lambda") +
+  ylab("RMSE") +
+  scale_y_continuous(n.breaks = 6, labels = comma) +
+  scale_x_continuous(n.breaks = 10) +
+  theme(axis.title.x = element_text(vjust = -5, face = "bold"), 
+        axis.title.y = element_text(vjust = 10, face = "bold"), 
+        plot.margin = margin(0.7, 0.5, 1, 1.2, "cm"))
+```
+
+The optimal $\lambda$  is: 
+`r lambdas[which.min(lambdas_rmse)]`
+
+It's worth noting that here the lambda value is only optimized on 90% of the edx data, which is the training data for the model. The lambda value found is used to evaluate the model on test data made up of 10% of the edx data. Model performance is reported in Table \@ref(tab:modelB2). We can see that the model performs significantly better than the RANDOM and POPULAR algorithms, but not as well as the SVD algorithm. 
+
+```{r modelB2, cache=TRUE}
+# Regularized linear model construction
+
+lambda <- lambdas[which.min(lambdas_rmse)]
+
+ mu <- mean(train_set$rating)
+
+b_i_regularized <- train_set %>% 
+  group_by(movieId) %>%
+  summarize(b_i = sum(rating - mu)/(n()+lambda))
+
+b_u_regularized <- train_set %>% 
+  left_join(b_i_regularized, by="movieId") %>%
+  group_by(userId) %>%
+  summarize(b_u = sum(rating - b_i - mu)/(n()+lambda))
+
+y_hat_regularized <- test_set %>% 
+  left_join(b_i_regularized, by = "movieId") %>%
+  left_join(b_u_regularized, by = "userId") %>%
+  mutate(prediction = mu + b_i + b_u) %>%
+  pull(prediction)
+
+# Evaluation 
+
+evaluation <-bind_rows(evaluation,
+                       tibble(Model = "Linear Regression Model",
+                              MAE  = Metrics::mae(test_set$rating, y_hat_regularized),
+                              MSE  = Metrics::mse(test_set$rating, y_hat_regularized),
+                              RMSE = Metrics::rmse(test_set$rating, y_hat_regularized)))
+ 
+kable(
+  evaluation, booktabs = TRUE, caption = "Algorithms performance.")%>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+##  Modeling approach C: Matrix factorization
+
+As described in [@JMLR] Matrix Factorization (MF) is a process to find two factor matrices, $P\in \mathbb{R}^{k\times m} and Q \in \mathbb{R}^{k\times m}$ , to describe a given $m$-by-$n$ training matrix $R$ in which some entries may be missing.
+For rating prediction, the entry value $r_{u,i}\in \mathbb{R}$ indicates that the $i$th item was rated $r_{u,i}$ by the $u$th user. Once $P$ and $Q$ are learned, a missing rating at the $(u^{\prime}, i^{\prime})$ entry can be predicted by the inner product of the $u^{\prime}$th column of $P$ (i.e., $p_{u^{\prime}}$ ) and the $i^{\prime}$th column of $Q$ (i.e., $q_{i^{\prime}}$ ). It means that we can generate the predicted scores on all movies for a user, and then the one with highest score may be recommended. MF can be formulated as a non-convex optimization problem :
+
+\begin{equation}
+	\min_{P,Q} \sum_{(u,i)}\left[ f(p_{u},q_{i},r_{u,i}) + \mu_{p}\|p_{u}\|_{1} + \mu_{q}\|q_{i}\|_{1} + \frac{\lambda_{p}}{2}\|p_{u}\|_{2}^{2} + \frac{\lambda_{q}}{2}\|q_{i}\|_{2}^{2}\right] 
+	(\#eq:modelC)
+\end{equation}
+
+where $r_{u,i}$ is the $(u, i)$ entry of $R$, $f (.)$ is a non-convex loss function of $p_{u}$ and $q_{i}$, and $\mu_{p}$,
+$\mu_{q}$, $\lambda_{p}$, and $\lambda_{q}$ are regularization coefficients.
+
+The results shown in Table \@ref(tab:modelC2) demonstrate the high performance of the matrix factorization model. 
+
+```{r modelC, cache=TRUE, results='hide'}
+###############################################"
+# Modeling approach C: Matrix factorization
+############################
+
+##### Data set reorganisation in package Recosytem format################
+
+set.seed(1)
+train_rec <- with(train_set, data_memory(user_index = userId, 
+                                                item_index = movieId,
+                                                rating     = rating))
+test_rec <- with(test_set, data_memory(user_index = userId, 
+                                              item_index = movieId, 
+                                              rating     = rating))
+
+##### Model objet#######
+
+recom_system <- Reco()
+
+#### Model is tuned ######
+tun <- recom_system$tune(train_rec, opts = list(dim = c(10, 20, 30),
+                                                                   lrate = c(0.1, 0.2),
+                                                                   nthread  = 4,
+                                                                   niter = 10))
+
+
+##### Model training #############
+
+recom_system$train(train_rec, opts = c(tun$min,
+                                                       nthread = 4,
+                                                       niter = 31))
+
+#####Prediction##############
+
+y_hat_MatFac <-  recom_system$predict(test_rec, out_memory())
+
+#############Evaluation ###############
+
+evaluation <- bind_rows(evaluation,
+                        tibble(Model = "Matrix factorization",
+                               MAE  = Metrics::mae(test_set$rating, y_hat_MatFac),
+                               MSE  = Metrics::mse(test_set$rating, y_hat_MatFac),
+                               RMSE = Metrics::rmse(test_set$rating, y_hat_MatFac)))
+
+```
+
+
+
+```{r modelC2}
+kable(
+  evaluation, booktabs = TRUE, caption = "Algorithms performance on test data.")%>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+## Choosing the best-performing model. 
+
+A comparative analysis of the results shown in Table \@ref(tab:modelC2) leads to the conclusion that the matrix factorization model performs best in terms of RMSE. This model is then chosen as the final model.
+
+## Predictions on the final holdout data
+
+The final model is re-trained on all edx dataset, then evaluated on the validation dataset. The results show an improvement in model performance. This is due to the larger size of the data. 
+
+```{r finalmod, cache=TRUE, results='hide'}
+#######################################################################
+#Model performance on the final holdout data
+######################################################
+
+set.seed(1)
+train_rec2 <- with(edx, data_memory(user_index = userId, 
+                                         item_index = movieId,
+                                         rating     = rating))
+
+valid_rec <- with(final_holdout_test, data_memory(user_index = userId, 
+                                                  item_index = movieId, 
+                                                  rating     = rating))
+#### Model is tuned ######
+tun2 <- recom_system$tune(train_rec2, opts = list(dim = c(10, 20, 30),
+                                                lrate = c(0.1, 0.2),
+                                                nthread  = 4,
+                                                niter = 10))
+
+
+##### Model training #############
+
+recom_system$train(train_rec2, opts = c(tun2$min,
+                                       nthread = 4,
+                                       niter = 31))
+
+#####Prediction##############
+y_hat_MatFac2 <-  recom_system$predict(valid_rec, out_memory())
+
+RMSE_f <- Metrics::rmse(final_holdout_test$rating, y_hat_MatFac2)
+```
+
+
+# Results
+
+Our analysis shows that the matrix factorization algorithm is the best performing of the 5 algorithms trained on edx data. Performance in terms of RMSE on the validation data is **`r RMSE_f`**. That said, we also note the good performance of the POPULAR, SVD and linear regression algorithms with a regularization parameter, which are all below 0.87.
+
+The top ten (10) movies recommended by the final model are shown in Table \@ref(tab:fmodpred) with the average rating and the count of times each movie is recommended.
+
+```{r fmodpred, cache=TRUE}
+top10_pred <- tibble(Title = final_holdout_test$title, y_hat = y_hat_MatFac2) %>%
+  arrange(desc(y_hat)) %>%
+  select(Title) %>%
+  unique() %>%
+  slice_head(n = 10)
+top10_pred_df <- data.frame(Title = top10_pred,
+                                     Rating = rep(NA, 10),
+                                     Count = rep(NA, 10))
+
+for (i in 1:10) {
+  ind <- which(final_holdout_test$title == as.character(top10_pred[i,]))
+  top10_pred_df$Rating[i] <- mean(final_holdout_test$rating[ind])
+  top10_pred_df$Count[i] <- sum(
+    final_holdout_test$title == as.character(top10_pred[i,])
+  )
+}
+kable(
+  top10_pred_df, booktabs = TRUE, caption = "Top 10 movie recommendation by the final model.")%>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+
+# Conclusion
+
+In this study, we explored the Movielens-10M data. First, we used various visualizations to understand the data. Then 5 algorithms were chosen and trained on part of the data. The analysis revealed that the matrix factorization model is the best model, with an RMSE performance of **`r RMSE_f`**. This model will therefore be ideal for our movie recommendation system.
+
+# References
+
+
